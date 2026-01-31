@@ -1,8 +1,10 @@
 import java.io.*;
+import java.time.*;
 import java.util.*;
 
 public class CSVUtils {
 
+    // ---------------- REGISTER USER ----------------
     public static void registerUser(Scanner sc) throws IOException {
         File f = new File("login.csv");
         f.createNewFile();
@@ -30,6 +32,7 @@ public class CSVUtils {
         System.out.println("Registered successfully.");
     }
 
+    // ---------------- LOGIN ----------------
     public static boolean loginUser(Scanner sc, StringBuilder outUser) throws IOException {
         File f = new File("login.csv");
         if (!f.exists()) {
@@ -70,6 +73,7 @@ public class CSVUtils {
         }
     }
 
+    // ---------------- PRINT DATA ----------------
     public static void printUserData(String username) throws IOException {
         File f = new File(username + ".csv");
         if (!f.exists()) {
@@ -79,28 +83,33 @@ public class CSVUtils {
         System.out.println("---- Data for " + username + " ----");
         try (BufferedReader br = new BufferedReader(new FileReader(f))) {
             String line;
-            while ((line = br.readLine()) != null) System.out.println(line);
+            while ((line = br.readLine()) != null)
+                System.out.println(line);
         }
         System.out.println("---- end ----");
     }
 
+    // ---------------- WEEK TOTAL ----------------
     public static void computeWeekTotalAndAppendIfNeeded(String username) throws IOException {
         File f = new File(username + ".csv");
         if (!f.exists()) return;
 
-        LinkedHashMap<String, Double> dayTotals = new LinkedHashMap<>();
+        List<Double> daily = new ArrayList<>();
+
         try (BufferedReader br = new BufferedReader(new FileReader(f))) {
             String line;
             while ((line = br.readLine()) != null) {
                 String[] p = line.split(",");
-                if (p.length == 2) dayTotals.put(p[0], Double.parseDouble(p[1]));
+                if (p.length == 2 && !p[0].startsWith("Week") && !p[0].startsWith("Month")) {
+                    daily.add(Double.parseDouble(p[1]));
+                }
             }
         }
 
-        if (dayTotals.size() >= 7) {
-            List<Double> v = new ArrayList<>(dayTotals.values());
+        if (daily.size() >= 7) {
             double sum = 0;
-            for (int i = v.size() - 7; i < v.size(); i++) sum += v.get(i);
+            for (int i = daily.size() - 7; i < daily.size(); i++)
+                sum += daily.get(i);
 
             try (FileWriter fw = new FileWriter(f, true)) {
                 fw.write("Week Total," + String.format("%.2f", sum) + "\n");
@@ -108,4 +117,43 @@ public class CSVUtils {
             System.out.println("Weekly total appended: " + sum);
         }
     }
+
+    // ---------------- MONTH TOTAL ----------------
+    public static void computeMonthTotalAndAppendIfNeeded(String username) throws IOException {
+
+        File f = new File(username + ".csv");
+        if (!f.exists()) return;
+
+        String currentMonth = YearMonth.now().toString();   // 2026-01
+
+        double sum = 0;
+        boolean alreadyAdded = false;
+
+        try (BufferedReader br = new BufferedReader(new FileReader(f))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+
+                if (line.startsWith("Month Total (" + currentMonth)) {
+                    alreadyAdded = true;
+                    break;
+                }
+
+                String[] p = line.split(",");
+                if (p.length == 2 && p[0].matches("\\d{4}-\\d{2}-\\d{2}")) {
+                    if (p[0].startsWith(currentMonth)) {
+                        sum += Double.parseDouble(p[1]);
+                    }
+                }
+            }
+        }
+
+        if (!alreadyAdded && sum > 0) {
+            try (FileWriter fw = new FileWriter(f, true)) {
+                fw.write("Month Total (" + currentMonth + ")," +
+                        String.format("%.2f", sum) + "\n");
+            }
+            System.out.println("Monthly total appended: " + sum);
+        }
+    }
 }
+
